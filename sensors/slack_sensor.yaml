@@ -22,3 +22,9 @@
             type: "string"
           attachments:
             type: "object"
+          data:
+            type: "object"
+          subtype:
+            type: "string"
+          thread_ts:
+            type: "string"

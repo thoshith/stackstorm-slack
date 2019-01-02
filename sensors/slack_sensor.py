@@ -18,9 +18,8 @@ EVENT_TYPE_WHITELIST = [
 ]
 
 EVENT_SUBTYPE_WHITELIST = [
-    'bot_message'
+    # 'bot_message', ''file_comment', 'message_replied'
 ]
-
 
 class SlackSensor(PollingSensor):
     DATASTORE_KEY_NAME = 'last_message_timestamp'
@@ -154,6 +153,10 @@ class SlackSensor(PollingSensor):
         # Check if the message was written by a bot without as_user attribute
         if self._allow_bot_messages and 'user' not in data and 'username' in data:
             user_info = {'name': data['username'], 'is_bot': True, 'profile': {}}
+        elif 'subtype' in data and data['subtype'] == 'message_replied':
+            temp = data['message']
+            user_info = self._get_user_info(user_id=temp['user'])
+            data['text'] = temp['text']
         else:
             # Note: We resolve user and channel information to provide more context
             user_info = self._get_user_info(user_id=data['user'])
@@ -180,7 +183,7 @@ class SlackSensor(PollingSensor):
             'user': {
                 'id': user_info.get('id',
                                     'Unknown'),
-                'name': user_info['name'],
+                'name': user_info.get('name', 'Unknown'),
                 'first_name': user_info['profile'].get('first_name',
                                                        'Unknown'),
                 'last_name': user_info['profile'].get('last_name',
@@ -199,12 +202,19 @@ class SlackSensor(PollingSensor):
             },
             'timestamp': int(float(data['ts'])),
             'timestamp_raw': data['ts'],
-            'text': text
+            'text': text,
+            'data': data
         }
 
         # Checks if the user enabled attachments and checks if attachments were sent in the message
         if 'attachments' in data:
             payload['attachments'] = data['attachments']
+
+        if 'subtype' in data:
+            payload['subtype'] = data['subtype']
+
+        if 'thread_ts' in data:
+                    payload['thread_ts'] = data['thread_ts']
 
         self._sensor_service.dispatch(trigger=trigger, payload=payload)
 
